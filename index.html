@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ResaChouboulou — Réservations Chouboulou</title>
+<style>
+  :root{
+    --accent:#2b7cff;
+    --muted:#657080;
+    --bg:#f5f7fb;
+    --card:#ffffff;
+    --maxw:1200px;
+    --success:#dff7dd;
+    --danger:#ffdada;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#102028;background:var(--bg)}
+  header{background:var(--card);border-bottom:1px solid #e6eef6;position:sticky;top:0;z-index:40}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:14px}
+  .top{display:flex;gap:12px;align-items:center}
+  .brand{font-weight:800;color:var(--accent);font-size:20px}
+  .search{display:flex;gap:8px;align-items:center;flex:1}
+  input[type=text],input[type=date],select,input[type=number]{padding:9px;border-radius:8px;border:1px solid #e4eefb;background:white}
+  .btn{background:var(--accent);color:white;padding:9px 12px;border:none;border-radius:8px;cursor:pointer}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(43,124,255,0.12)}
+  main{max-width:var(--maxw);margin:18px auto;display:flex;gap:18px;padding:0 14px}
+  aside{width:300px;background:var(--card);padding:14px;border-radius:12px;border:1px solid #eef5ff;height:fit-content}
+  .filters h4{margin:6px 0}
+  .filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .results{flex:1}
+  .controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .cards{display:flex;flex-direction:column;gap:12px}
+  .card{display:flex;gap:12px;background:var(--card);padding:12px;border-radius:12px;border:1px solid #e9f1ff;align-items:center}
+  .thumb{width:220px;height:140px;border-radius:10px;overflow:hidden;flex-shrink:0}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .meta{flex:1}
+  .meta h3{margin:0;font-size:16px}
+  .meta p{margin:6px 0;color:var(--muted);font-size:13px}
+  .side{width:170px;text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+  .price{font-weight:800;color:#0b7b44}
+  .rating{background:#f0f8ff;padding:6px 8px;border-radius:10px;font-weight:700}
+  .pagination{display:flex;gap:6px;justify-content:center;margin-top:14px}
+  footer{text-align:center;color:var(--muted);padding:30px 10px}
+  /* modal full screen detail */
+  .overlay{position:fixed;inset:0;background:rgba(5,10,20,0.45);display:none;align-items:center;justify-content:center;z-index:80;padding:18px}
+  .panel{background:white;border-radius:12px;max-width:1100px;width:100%;max-height:90vh;overflow:auto;border:1px solid #e8f2ff}
+  .panel .head{display:flex;gap:12px;padding:14px;border-bottom:1px solid #eef5ff;align-items:center}
+  .panel .photos{display:flex;gap:8px;padding:14px;flex-wrap:wrap}
+  .big{width:60%;min-width:360px;height:320px;border-radius:10px;overflow:hidden}
+  .small{width:calc(40% - 8px);display:flex;flex-direction:column;gap:8px}
+  .small img,.big img{width:100%;height:100%;object-fit:cover;display:block}
+  .panel .content{padding:12px 16px}
+  .amenities{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .chip{background:#eef8ff;padding:6px 8px;border-radius:8px;font-size:13px}
+  .comments{margin-top:12px}
+  .comment{border:1px solid #eef6ff;border-radius:10px;padding:10px;margin-bottom:8px;background:#fbfeff}
+  /* booking form modal */
+  .cardbox{padding:14px}
+  .form-row{display:flex;gap:8px;margin-bottom:8px}
+  input[type=tel]{padding:9px;border-radius:8px;border:1px solid #eaf0fb;width:100%}
+  .success{background:var(--success);padding:10px;border-radius:8px;margin-bottom:10px;color:#05631e;display:none}
+  .danger{background:var(--danger);padding:10px;border-radius:8px;margin-bottom:10px;color:#8a1b1b;display:none}
+  /* account panel */
+  .account{position:fixed;right:18px;top:70px;background:white;border-radius:12px;padding:12px;border:1px solid #e9f3ff;z-index:70;display:none;width:320px}
+  .acct-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .smalltxt{color:var(--muted);font-size:13px}
+  @media (max-width:1000px){
+    aside{display:none}
+    .thumb{display:none}
+    .big{width:100%;height:240px}
+    .small{display:none}
+    main{padding:0 8px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap top">
+    <div class="brand">ResaChouboulou</div>
+    <div class="search">
+      <input id="q" type="text" placeholder="Destination, hôtel, ville..." />
+      <input id="checkin" type="date" />
+      <input id="checkout" type="date" />
+      <select id="guests"><option>1 voyageur</option><option>2 voyageurs</option><option>3 voyageurs</option></select>
+      <button class="btn" id="searchBtn">Rechercher</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn ghost" id="signBtn">S'inscrire / Connexion</button>
+      <div id="userBadge" style="display:none;padding:8px 10px;border-radius:8px;background:#f0f7ff;border:1px solid #dbeeff;cursor:pointer"></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <div class="filters">
+      <h4>Filtres</h4>
+      <div class="filter-row">
+        <label><input type="checkbox" class="amenFilter" value="wifi"> Wifi</label>
+        <label><input type="checkbox" class="amenFilter" value="pool"> Piscine</label>
+        <label><input type="checkbox" class="amenFilter" value="parking"> Parking</label>
+        <label><input type="checkbox" class="amenFilter" value="pet"> Animaux</label>
+      </div>
+      <h4>Note minimale</h4>
+      <select id="minRating">
+        <option value="0">Aucune</option>
+        <option value="7">7.0+</option>
+        <option value="8">8.0+</option>
+        <option value="9">9.0+</option>
+      </select>
+
+      <h4 style="margin-top:10px">Prix (€)</h4>
+      <div class="filter-row">
+        <input id="minPrice" type="number" placeholder="Min" style="width:120px"/>
+        <input id="maxPrice" type="number" placeholder="Max" style="width:120px"/>
+      </div>
+
+      <h4 style="margin-top:10px">Tri</h4>
+      <select id="sortBy">
+        <option value="featured">Recommandés</option>
+        <option value="price_asc">Prix ↑</option>
+        <option value="price_desc">Prix ↓</option>
+        <option value="rating_desc">Note ↓</option>
+        <option value="rating_asc">Note ↑</option>
+      </select>
+      <div style="margin-top:12px;color:var(--muted);font-size:13px">
+        Les hôtels sont &quot;Chouboulou only&quot; : seules les personnes marquées Chouboulou peuvent réserver.
+      </div>
+    </div>
+  </aside>
+
+  <section class="results" style="flex:1">
+    <div id="successBox" class="success">✅ Inscription réussie !</div>
+    <div class="controls">
+      <div><strong id="count">0</strong> hôtels trouvés</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn ghost" id="resetBtn">Réinitialiser</button>
+      </div>
+    </div>
+
+    <div class="cards" id="cards"></div>
+
+    <div class="pagination" id="pagination"></div>
+  </section>
+</main>
+
+<footer>
+  © <span id="year"></span> ResaChouboulou — Démo locale (données fictives)
+</footer>
+
+<!-- Fullscreen Detail Overlay -->
+<div class="overlay" id="overlay">
+  <div class="panel" role="dialog" aria-modal="true">
+    <div class="head">
+      <div style="flex:1">
+        <h2 id="d_title" style="margin:0"></h2>
+        <div class="smalltxt" id="d_city"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;padding-right:12px">
+        <div id="d_gen" class="chip" style="display:none"></div>
+        <div id="d_price" style="font-weight:800;font-size:18px"></div>
+        <button class="btn" id="d_book">Réserver</button>
+        <button class="btn ghost" id="d_close">Fermer</button>
+      </div>
+    </div>
+
+    <div class="photos" id="d_photos">
+      <div class="big"><img id="d_img_big" src=""></div>
+      <div class="small">
+        <img id="d_img_1" src="">
+        <img id="d_img_2" src="">
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="d_desc"></div>
+      <div class="amenities" id="d_amens"></div>
+
+      <div class="comments">
+        <h4>Avis & commentaires</h4>
+        <div id="commentsList"></div>
+
+        <div style="margin-top:10px;border-top:1px solid #eef8ff;padding-top:10px">
+          <h4>Ajouter un avis</h4>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input id="c_name" placeholder="Ton pseudo" style="flex:1"/>
+            <input id="c_score" type="number" placeholder="Note /10" min="1" max="10" style="width:90px"/>
+          </div>
+          <textarea id="c_text" placeholder="Ton commentaire..." style="width:100%;padding:8px;border-radius:8px;border:1px solid #eef8ff"></textarea>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px">
+            <button class="btn ghost" id="c_cancel">Annuler</button>
+            <button class="btn" id="c_add">Publier</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Booking modal -->
+<div class="overlay" id="bookOverlay" style="display:none">
+  <div class="panel" style="max-width:540px">
+    <div class="cardbox">
+      <h3 id="b_title">Réserver</h3>
+      <div id="b_info" class="smalltxt"></div>
+      <div id="b_error" class="danger"></div>
+      <div id="b_success" class="success"></div>
+
+      <div style="margin-top:10px">
+        <div class="form-row"><input id="p_name" placeholder="Nom complet" /></div>
+        <div class="form-row"><input id="cc_number" placeholder="Numéro de carte (simulation)" maxlength="19"/></div>
+        <div class="form-row"><input id="cc_exp" placeholder="MM/AA" style="width:120px"/><input id="cc_cvv" placeholder="CVV" style="width:120px"/></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+          <button class="btn ghost" id="b_cancel">Annuler</button>
+          <button class="btn" id="b_pay">Payer (simulation)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Account panel -->
+<div class="account" id="accountPanel">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <strong id="acc_nick"></strong>
+      <div class="smalltxt" id="acc_email"></div>
+    </div>
+    <div style="text-align:right">
+      <div class="chip" id="acc_gen">Genius 0</div>
+      <div class="smalltxt" id="acc_rescount"></div>
+    </div>
+  </div>
+  <hr style="margin:10px 0;border:none;border-top:1px solid #eef7ff"/>
+  <div>
+    <strong>Historique des réservations</strong>
+    <div id="acc_history" style="margin-top:8px;max-height:220px;overflow:auto"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-top:10px">
+    <button class="btn ghost" id="acc_logout">Se déconnecter</button>
+    <button class="btn" id="acc_close">Fermer</button>
+  </div>
+</div>
+
+<!-- Sign modal (simple) -->
+<div class="overlay" id="signOverlay" style="display:none">
+  <div class="panel" style="max-width:520px">
+    <div class="cardbox">
+      <h3>Inscription / Connexion</h3>
+      <div id="sign_error" class="danger"></div>
+      <div style="margin-top:8px">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input id="s_nick" placeholder="Pseudo (obligatoire)" />
+          <input id="s_email" placeholder="Email" />
+        </div>
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="s_chou"/> Je suis Chouboulou</label>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+          <button class="btn ghost" id="s_cancel">Annuler</button>
+          <button class="btn" id="s_ok">S'inscrire</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* -------------------------
+  Utilitaires & stockage
+----------------------------*/
+const LS_USER = 'resa_user_v1';
+const LS_HOTELS = 'resa_hotels_v1';
+
+const $ = id=> document.getElementById(id);
+const pick = arr=> arr[Math.floor(Math.random()*arr.length)];
+const rand = (a,b)=>(Math.floor(Math.random()*(b-a+1))+a);
+
+const currentYear = new Date().getFullYear();
+$('year').textContent = currentYear;
+
+/* -------------------------
+  Créer / charger hôtels
+----------------------------*/
+function generateHotels(n=200){
+  const cities = ["Chouboville","PlageChou","MontChoubou","ValChou","Ile Choubou","PortChou","Rivière Chou"];
+  const adjs = ["Royal","Cosy","Zen","Magique","Étoile","Azur","Bulle","Panoramique","Luxe"];
+  const amens = ["wifi","pool","parking","pet","spa","restaurant","gym","breakfast"];
+  const comments = ["Super séjour","Personnel adorable","Très propre","Emplacement parfait","Piscine magnifique","Bruits la nuit","Excellent petit-déjeuner","Parfait pour enfants","Vue incroyable","Bon rapport qualité-prix"];
+  const hotels = [];
+  for(let i=1;i<=n;i++){
+    const name = `${pick(adjs)} Chouboulou ${i}`;
+    const city = pick(cities);
+    const price = rand(35,420);
+    const stars = rand(2,5);
+    const score = Number((Math.random()*3+6).toFixed(1)); // 6.0 - 9.9
+    const amenities = amens.filter(()=> Math.random()>0.5);
+    const genius = Math.random() < 0.14; // ~14% genius
+    const available = Math.random() > 0.06;
+    const reviews = Array.from({length:rand(3,12)}, ()=>({
+      user: `Guest${rand(100,999)}`,
+      score: Number((Math.random()*4+6).toFixed(1)),
+      text: pick(comments)
+    }));
+    hotels.push({id:'h'+i, name, city, price, stars, score, amenities, genius, available, reviews});
+  }
+  return hotels;
+}
+
+let HOTELS = JSON.parse(localStorage.getItem(LS_HOTELS) || 'null');
+if(!HOTELS){ HOTELS = generateHotels(220); localStorage.setItem(LS_HOTELS, JSON.stringify(HOTELS)); }
+
+/* -------------------------
+  Etat de l'app
+----------------------------*/
+let state = {
+  q: '', minRating:0, minPrice:null, maxPrice:null, amenities:[], sortBy:'featured',
+  page:1, perPage:12, user: JSON.parse(localStorage.getItem(LS_USER) || 'null')
+};
+
+/* -------------------------
+  Utils filtres & tri
+----------------------------*/
+function matches(h){
+  const q = state.q.trim().toLowerCase();
+  if(q && !(h.name+' '+h.city).toLowerCase().includes(q)) return false;
+  if(h.score < state.minRating) return false;
+  if(state.minPrice && h.price < state.minPrice) return false;
+  if(state.maxPrice && h.price > state.maxPrice) return false;
+  if(state.amenities.length) for(const a of state.amenities) if(!h.amenities.includes(a)) return false;
+  return true;
+}
+function sortHotels(arr){
+  const s = state.sortBy;
+  if(s==='price_asc') return arr.sort((a,b)=>a.price-b.price);
+  if(s==='price_desc') return arr.sort((a,b)=>b.price-a.price);
+  if(s==='rating_asc') return arr.sort((a,b)=>a.score-b.score);
+  if(s==='rating_desc') return arr.sort((a,b)=>b.score-a.score);
+  // featured
+  return arr.sort((a,b)=> (b.genius - a.genius) || (b.score - a.score) || (a.price - b.price));
+}
+
+/* -------------------------
+  Rendu liste / pagination
+----------------------------*/
+const cards = $('cards'), pagination = $('pagination'), countEl = $('count');
+function render(){
+  let list = HOTELS.filter(matches);
+  list = sortHotels(list);
+  countEl.textContent = list.length;
+  const pages = Math.max(1, Math.ceil(list.length / state.perPage));
+  if(state.page > pages) state.page = pages;
+  const start = (state.page-1)*state.perPage;
+  const pageItems = list.slice(start, start + state.perPage);
+
+  cards.innerHTML = '';
+  for(const h of pageItems){
+    const card = document.createElement('div'); card.className='card';
+    card.innerHTML = `
+      <div class="thumb"><img src="https://picsum.photos/seed/${h.id}/600/400" alt=""></div>
+      <div class="meta">
+        <h3>${h.name}</h3>
+        <p>${h.city} • ${h.stars} ★ • ${h.reviews.length} avis • note ${Number(h.score).toFixed(1)}/10</p>
+        <div style="color:var(--muted);font-size:13px">${h.amenities.slice(0,4).join(' • ')}${h.amenities.length>4?' • ...':''}</div>
+      </div>
+      <div class="side">
+        ${h.genius?'<div class="chip">Genius</div>':''}
+        <div class="price">${h.price} €</div>
+        <div class="rating">${h.score}/10</div>
+        <div><button class="btn ghost viewBtn" data-id="${h.id}">Voir</button></div>
+      </div>
+    `;
+    cards.appendChild(card);
+  }
+
+  // pagination
+  pagination.innerHTML = '';
+  const left = document.createElement('button'); left.className='btn ghost'; left.textContent='←'; left.onclick = ()=>{ if(state.page>1){state.page--; render();} }; pagination.appendChild(left);
+  const startPage = Math.max(1, state.page - 3);
+  const endPage = Math.min(pages, startPage + 6);
+  for(let p=startPage;p<=endPage;p++){
+    const b = document.createElement('button'); b.textContent = p; b.className = p===state.page? 'btn':'btn ghost';
+    b.onclick = ()=> { state.page = p; render(); };
+    pagination.appendChild(b);
+  }
+  const right = document.createElement('button'); right.className='btn ghost'; right.textContent='→'; right.onclick = ()=>{ if(state.page<pages){state.page++; render();} }; pagination.appendChild(right);
+
+  // attach view handlers
+  document.querySelectorAll('.viewBtn').forEach(b=> b.addEventListener('click', ()=> openDetail(b.dataset.id)));
+}
+
+/* -------------------------
+  Détail pleine page
+----------------------------*/
+const overlay = $('overlay');
+let currentHotel = null;
+
+function openDetail(id){
+  const h = HOTELS.find(x=>x.id===id);
+  if(!h) return;
+  currentHotel = h;
+  $('d_title').textContent = h.name;
+  $('d_city').textContent = `${h.city} • ${h.stars}★ • ${h.reviews.length} avis`;
+  $('d_price').textContent = `${h.price} €`;
+  $('d_gen').style.display = h.genius? 'inline-block':'none';
+  if(h.genius) $('d_gen').textContent = 'Offres Genius';
+  $('d_img_big').src = `https://picsum.photos/seed/${h.id}a/1200/800`;
+  $('d_img_1').src = `https://picsum.photos/seed/${h.id}b/800/600`;
+  $('d_img_2').src = `https://picsum.photos/seed/${h.id}c/800/600`;
+  $('d_desc').innerHTML = `<p style="margin-top:8px;color:var(--muted)">Description factice pour ${h.name}. Emplacement idéal, personnel accueillant, chambres confortables. Idéal pour les chouboulou.</p>`;
+  // amenities
+  const amDiv = $('d_amens'); amDiv.innerHTML='';
+  for(const a of h.amenities) { const el = document.createElement('div'); el.className='chip'; el.textContent = a; amDiv.appendChild(el); }
+
+  renderComments(h.id);
+
+  overlay.style.display = 'flex';
+  // show / hide reserve button based on availability
+  $('d_book').disabled = !h.available;
+}
+
+/* close detail */
+$('d_close').addEventListener('click', ()=> overlay.style.display='none');
+overlay.addEventListener('click', (e)=>{ if(e.target===overlay) overlay.style.display='none'; });
+
+/* -------------------------
+  Commentaires
+----------------------------*/
+function getHotelComments(hid){
+  const spot = JSON.parse(localStorage.getItem('resa_comments_v1') || '{}');
+  return spot[hid] || [];
+}
+function saveHotelComment(hid,comment){
+  const spot = JSON.parse(localStorage.getItem('resa_comments_v1') || '{}');
+  spot[hid] = spot[hid] || [];
+  spot[hid].unshift(comment);
+  localStorage.setItem('resa_comments_v1', JSON.stringify(spot));
+}
+function renderComments(hid){
+  const list = getHotelComments(hid);
+  // merge with hotel's builtin reviews
+  const base = (currentHotel.reviews || []).slice().map(r=>({user:r.user,score:r.score,text:r.text}));
+  const merged = list.concat(base);
+  const container = $('commentsList'); container.innerHTML = '';
+  if(merged.length===0) container.innerHTML = '<div class="smalltxt">Aucun commentaire</div>';
+  merged.slice(0,25).forEach(c=>{
+    const el = document.createElement('div'); el.className='comment';
+    el.innerHTML = `<div style="display:flex;justify-content:space-between"><strong>${c.user}</strong><span style="font-weight:700">${Number(c.score).toFixed(1)}/10</span></div><div class="smalltxt" style="margin-top:6px">${c.text}</div>`;
+    container.appendChild(el);
+  });
+}
+
+/* add comment handlers */
+$('c_add').addEventListener('click', ()=>{
+  const name = $('c_name').value.trim() || (state.user?state.user.nick:'Anonyme');
+  const score = Number($('c_score').value) || 8;
+  const text = $('c_text').value.trim();
+  if(!text){ alert('Écris un commentaire avant de publier.'); return; }
+  const comment = {user:name, score: score, text};
+  saveHotelComment(currentHotel.id, comment);
+  $('c_name').value = ''; $('c_score').value=''; $('c_text').value='';
+  renderComments(currentHotel.id);
+});
+
+/* cancel comment */
+$('c_cancel').addEventListener('click', ()=>{ $('c_name').value=''; $('c_score').value=''; $('c_text').value=''; });
+
+/* -------------------------
+  Inscription / compte
+----------------------------*/
+const signOverlay = $('signOverlay');
+$('signBtn').addEventListener('click', ()=> { $('signOverlay').style.display='flex'; $('sign_error').style.display='none'; });
+$('s_cancel').addEventListener('click', ()=> $('signOverlay').style.display='none');
+
+$('s_ok').addEventListener('click', ()=>{
+  const nick = $('s_nick').value.trim();
+  const email = $('s_email').value.trim() || '';
+  const isChou = $('s_chou').checked;
+  if(!nick){ $('sign_error').textContent = 'Le pseudo est obligatoire.'; $('sign_error').style.display='block'; return; }
+  // create user
+  const user = {nick, email, isChou, resCount:0, genius:0, history:[]};
+  state.user = user;
+  localStorage.setItem(LS_USER, JSON.stringify(user));
+  $('signOverlay').style.display='none';
+  $('successBox').style.display='block';
+  setTimeout(()=> $('successBox').style.display='none', 3500);
+  updateUserUI();
+});
+
+/* update UI after login/logout */
+function updateUserUI(){
+  const ub = $('userBadge');
+  const sign = $('signBtn');
+  if(!state.user){ ub.style.display='none'; sign.style.display='inline-block'; return; }
+  sign.style.display='none';
+  ub.style.display='inline-block';
+  ub.innerHTML = `<strong>${state.user.nick}</strong> <div style="font-size:12px;color:var(--muted)">${state.user.isChou? '• Chouboulou':'• Non-chou'}</div><div style="margin-top:6px" class="smalltxt">Genius ${state.user.genius} • ${state.user.resCount} réservations</div>`;
+  // save
+  localStorage.setItem(LS_USER, JSON.stringify(state.user));
+}
+
+/* userBadge click toggles account panel */
+const acct = $('accountPanel');
+$('userBadge').addEventListener('click', ()=> {
+  if(!state.user) return;
+  renderAccount();
+  acct.style.display = acct.style.display==='none'?'block':'none';
+});
+
+/* render account info */
+function renderAccount(){
+  if(!state.user) return;
+  $('acc_nick').textContent = state.user.nick;
+  $('acc_email').textContent = state.user.email || '';
+  $('acc_gen').textContent = 'Genius ' + (state.user.genius || 0);
+  $('acc_rescount').textContent = state.user.resCount + ' réservations';
+  const hist = $('acc_history'); hist.innerHTML = '';
+  if(state.user.history && state.user.history.length){
+    state.user.history.slice().reverse().forEach(h=>{
+      const el = document.createElement('div'); el.style.padding='8px'; el.style.borderBottom='1px solid #eef8ff';
+      el.innerHTML = `<strong>${h.hotel}</strong><div class="smalltxt">${h.date} — ${h.price}€ — ref ${h.ref}</div>`;
+      hist.appendChild(el);
+    });
+  } else hist.innerHTML = '<div class="smalltxt">Aucune réservation</div>';
+}
+
+/* logout */
+$('acc_logout').addEventListener('click', ()=>{
+  if(confirm('Se déconnecter ?')){ state.user=null; localStorage.removeItem(LS_USER); updateUserUI(); acct.style.display='none'; }
+});
+$('acc_close').addEventListener('click', ()=> acct.style.display='none');
+
+/* -------------------------
+  Réservation (paiement simulé)
+----------------------------*/
+const bookOverlay = $('bookOverlay');
+$('d_book').addEventListener('click', ()=>{
+  if(!state.user){ alert('Tu dois être connecté pour réserver.'); $('signOverlay').style.display='flex'; return; }
+  if(!state.user.isChou){ alert('Désolé — seules les personnes marquées Chouboulou peuvent réserver.'); return; }
+  // prepare booking modal
+  $('b_title').textContent = 'Réserver — ' + currentHotel.name;
+  $('b_info').textContent = `${currentHotel.city} • Prix : ${currentHotel.price} €${currentHotel.genius? ' • Offre Genius possible':''}`;
+  $('b_error').style.display='none'; $('b_success').style.display='none';
+  $('p_name').value = state.user.nick;
+  $('cc_number').value=''; $('cc_exp').value=''; $('cc_cvv').value='';
+  bookOverlay.style.display='flex';
+});
+
+/* cancel booking */
+$('b_cancel').addEventListener('click', ()=> bookOverlay.style.display='none');
+
+/* pay (simulation) */
+$('b_pay').addEventListener('click', ()=>{
+  const name = $('p_name').value.trim();
+  const num = $('cc_number').value.replace(/\s/g,'');
+  const exp = $('cc_exp').value.trim();
+  const cvv = $('cc_cvv').value.trim();
+  if(!name || !num || !exp || !cvv){ $('b_error').textContent = 'Remplis tous les champs de paiement (simulation).'; $('b_error').style.display='block'; return; }
+  // compute discount by genius level
+  let discount = 0;
+  if(currentHotel.genius && state.user.genius>0) discount = state.user.genius * 5; // 5/10/15/20 as earlier mapping
+  const final = Math.round(currentHotel.price * (1 - discount/100));
+  // simulate success
+  const ref = 'RC-'+Math.random().toString(36).slice(2,9).toUpperCase();
+  $('b_success').textContent = `✅ Réservation réussie ! Réf ${ref} — Montant débité (simulation) : ${final} €`;
+  $('b_success').style.display='block';
+  $('b_error').style.display='none';
+
+  // update user
+  if(!state.user.history) state.user.history = [];
+  state.user.history.push({hotel: currentHotel.name, price: final, date: (new Date()).toLocaleString(), ref});
+  state.user.resCount = (state.user.resCount || 0) + 1;
+  // update genius thresholds
+  if(state.user.resCount >= 30) state.user.genius = 3;
+  else if(state.user.resCount >= 15) state.user.genius = 2;
+  else if(state.user.resCount >= 5) state.user.genius = 1;
+  else state.user.genius = 0;
+
+  // persist
+  localStorage.setItem(LS_USER, JSON.stringify(state.user));
+
+  // hide after delay, update UI
+  setTimeout(()=>{
+    bookOverlay.style.display='none';
+    overlay.style.display='none';
+    updateUserUI();
+    renderAccount();
+    alert('Réservation confirmée (simulation). Référence: ' + ref);
+  },1200);
+});
+
+/* -------------------------
+  Filtres & events
+----------------------------*/
+$('searchBtn').addEventListener('click', ()=> { state.q = $('q').value; state.page=1; render(); });
+$('q').addEventListener('keypress', (e)=> { if(e.key==='Enter'){ state.q = $('q').value; state.page=1; render(); }});
+$('minRating').addEventListener('change', ()=> { state.minRating = Number($('minRating').value); state.page=1; render(); });
+$('minPrice').addEventListener('input', ()=> { state.minPrice = $('minPrice').value? Number($('minPrice').value): null; state.page=1; render(); });
+$('maxPrice').addEventListener('input', ()=> { state.maxPrice = $('maxPrice').value? Number($('maxPrice').value): null; state.page=1; render(); });
+$('sortBy').addEventListener('change', ()=> { state.sortBy = $('sortBy').value; state.page=1; render(); });
+$('resetBtn').addEventListener('click', ()=> {
+  $('q').value=''; $('minRating').value='0'; $('minPrice').value=''; $('maxPrice').value=''; $('sortBy').value='featured';
+  document.querySelectorAll('.amenFilter').forEach(c=>c.checked=false);
+  state = {...state, q:'', minRating:0, minPrice:null, maxPrice:null, amenities:[], sortBy:'featured', page:1};
+  render();
+});
+document.querySelectorAll('.amenFilter').forEach(ch=>{
+  ch.addEventListener('change', ()=> {
+    state.amenities = Array.from(document.querySelectorAll('.amenFilter:checked')).map(x=>x.value);
+    state.page=1; render();
+  });
+});
+
+/* -------------------------
+  Initial load
+----------------------------*/
+function boot(){
+  // restore user
+  const u = JSON.parse(localStorage.getItem(LS_USER) || 'null');
+  if(u) { state.user = u; }
+  updateUserUI();
+  render();
+}
+boot();
+
+/* Accessibility: close overlays on Escape */
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape'){
+    $('overlay').style.display='none';
+    $('bookOverlay').style.display='none';
+    $('signOverlay').style.display='none';
+    acct.style.display='none';
+  }
+});
+
+/* small helpers for direct UX improvements */
+$('d_close').addEventListener('focus', ()=> {});
+// hide successBox initially
+$('successBox').style.display = 'none';
+</script>
+
+</body>
+</html>
